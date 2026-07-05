@@ -72,8 +72,8 @@
             const producto = {
                 nombre: document.getElementById("nombre").value,
                 descripcion: document.getElementById("descripcion").value,
-                precio: document.getElementById("precio").value,
-                stock: document.getElementById("stock").value,
+                precio: parseFloat(document.getElementById("precio").value),
+                stock: parseInt(document.getElementById("stock").value),
                 categoria: document.getElementById("categoria").value,
                 imagen: document.getElementById("imagen").value
             };
@@ -89,9 +89,17 @@
             const res = await fetch(`${API}/pedidos`);
             const pedidos = await res.json();
             let html = "<h2>Pedidos</h2>";
+            if (pedidos.length === 0) { html += "<p>No hay pedidos.</p>"; }
             pedidos.forEach(p => {
                 html += `<div style="border:1px solid #ddd; padding:10px; margin:10px 0;">
-                    <strong>Pedido #${p.id}</strong> - Estado: ${p.estado} - Total: $${p.total}
+                    <strong>Pedido #${p.id}</strong> - Total: $${p.total}<br>
+                    Estado: <select onchange="cambiarEstado(${p.id}, this.value)">
+                        <option ${p.estado=='pendiente'?'selected':''}>pendiente</option>
+                        <option ${p.estado=='confirmado'?'selected':''}>confirmado</option>
+                        <option ${p.estado=='enviado'?'selected':''}>enviado</option>
+                        <option ${p.estado=='entregado'?'selected':''}>entregado</option>
+                        <option ${p.estado=='cancelado'?'selected':''}>cancelado</option>
+                    </select>
                     <ul>`;
                 p.lineas.forEach(l => {
                     html += `<li>${l.producto.nombre} x${l.cantidad} - $${l.subtotal}</li>`;
@@ -99,6 +107,14 @@
                 html += `</ul></div>`;
             });
             document.getElementById("contenido").innerHTML = html;
+        }
+
+        async function cambiarEstado(id, estado) {
+            await fetch(`${API}/pedidos/${id}/estado`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(estado)
+            });
         }
 
         async function mostrarFormularioPedido() {
