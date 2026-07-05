@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market 24</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        h1 { text-align: center; color: #333; }
+        nav { text-align: center; margin: 20px 0; }
+        nav button { margin: 5px; padding: 10px 20px; cursor: pointer; background: #333; color: white; border: none; border-radius: 5px; }
+        nav button:hover { background: #555; }
+        #contenido { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+        th { background: #333; color: white; }
+        input, select { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
+        button.accion { padding: 10px 20px; background: #333; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        button.eliminar { background: red; color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Market 24</h1>
+    <nav>
+        <button onclick="mostrarProductos()">Productos</button>
+        <button onclick="mostrarFormularioProducto()">Agregar Producto</button>
+        <button onclick="mostrarPedidos()">Pedidos</button>
+        <button onclick="mostrarFormularioPedido()">Crear Pedido</button>
+    </nav>
+    <div id="contenido"></div>
+
+    <script>
+        const API = "http://localhost:8080/api";
+
+        async function mostrarProductos() {
+            const res = await fetch(`${API}/productos`);
+            const productos = await res.json();
+            let html = "<h2>Productos</h2><table><tr><th>ID</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Categoria</th><th>Accion</th></tr>";
+            productos.forEach(p => {
+                html += `<tr>
+                    <td>${p.id}</td>
+                    <td>${p.nombre}</td>
+                    <td>$${p.precio}</td>
+                    <td>${p.stock}</td>
+                    <td>${p.categoria}</td>
+                    <td><button class="eliminar" onclick="eliminarProducto(${p.id})">Eliminar</button></td>
+                </tr>`;
+            });
+            html += "</table>";
+            document.getElementById("contenido").innerHTML = html;
+        }
+
+        async function eliminarProducto(id) {
+            await fetch(`${API}/productos/${id}`, { method: "DELETE" });
+            mostrarProductos();
+        }
+
+        function mostrarFormularioProducto() {
+            document.getElementById("contenido").innerHTML = `
+                <h2>Agregar Producto</h2>
+                <input id="nombre" placeholder="Nombre">
+                <input id="descripcion" placeholder="Descripcion">
+                <input id="precio" placeholder="Precio" type="number">
+                <input id="stock" placeholder="Stock" type="number">
+                <input id="categoria" placeholder="Categoria">
+                <input id="imagen" placeholder="URL de imagen">
+                <button class="accion" onclick="guardarProducto()">Guardar</button>
+            `;
+        }
+
+        async function guardarProducto() {
+            const producto = {
+                nombre: document.getElementById("nombre").value,
+                descripcion: document.getElementById("descripcion").value,
+                precio: document.getElementById("precio").value,
+                stock: document.getElementById("stock").value,
+                categoria: document.getElementById("categoria").value,
+                imagen: document.getElementById("imagen").value
+            };
+            await fetch(`${API}/productos`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(producto)
+            });
+            mostrarProductos();
+        }
+
+        async function mostrarPedidos() {
+            const res = await fetch(`${API}/pedidos`);
+            const pedidos = await res.json();
+            let html = "<h2>Pedidos</h2>";
+            pedidos.forEach(p => {
+                html += `<div style="border:1px solid #ddd; padding:10px; margin:10px 0;">
+                    <strong>Pedido #${p.id}</strong> - Estado: ${p.estado} - Total: $${p.total}
+                    <ul>`;
+                p.lineas.forEach(l => {
+                    html += `<li>${l.producto.nombre} x${l.cantidad} - $${l.subtotal}</li>`;
+                });
+                html += `</ul></div>`;
+            });
+            document.getElementById("contenido").innerHTML = html;
+        }
+
+        async function mostrarFormularioPedido() {
+            const res = await fetch(`${API}/productos`);
+            const productos = await res.json();
+            let opciones = productos.map(p => `<option value="${p.id}">${p.nombre} (stock: ${p.stock})</option>`).join("");
+            document.getElementById("contenido").innerHTML = `
+                <h2>Crear Pedido</h2>
+                <select id="productoId">${opciones}</select>
+                <input id="cantidad" placeholder="Cantidad" type="number">
+                <button class="accion" onclick="crearPedido()">Confirmar Pedido</button>
+            `;
+        }
+
+        async function crearPedido() {
+            const pedido = {
+                lineas: [{
+                    producto: { id: document.getElementById("productoId").value },
+                    cantidad: parseInt(document.getElementById("cantidad").value)
+                }]
+            };
+            const res = await fetch(`${API}/pedidos`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(pedido)
+            });
+            if (res.ok) {
+                alert("Pedido creado con exito!");
+                mostrarPedidos();
+            } else {
+                alert("Error: stock insuficiente o datos invalidos.");
+            }
+        }
+
+        mostrarProductos();
+    </script>
+</body>
+</html>
